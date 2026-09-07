@@ -395,8 +395,23 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() as any });
     }
 
-    // Landing page
-    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
+    // Landing page — human HTML doc + a plain-text description for content extractors.
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health" || url.pathname === "/index.txt")) {
+      const endpoint = `${url.origin}/mcp`;
+      const description =
+        "awwwards-mcp — an MCP server (TypeScript, Cloudflare Worker) that gives Lovable live Awwwards design specs as JSON tokens.\n" +
+        "Endpoint: " + endpoint + "\n" +
+        "Tools: search_awwwards (vibe/category/site discovery), extract_awwwards_specs (palette, typography, layout, motion tokens from any awwwards.com winner).\n" +
+        "No auth. Docs: " + endpoint.replace("/mcp", "/") + " — agent install/deploy/connect prompt chain at " + endpoint.replace("/mcp", "/") + "#agent";
+      // Plain-text route: /index.txt or / when the requester does not accept HTML.
+      // Browsers (Accept: text/html) get the rich doc; extractors/curl get readable text.
+      if (url.pathname === "/index.txt") {
+        return new Response(description, { headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() as any } });
+      }
+      const accept = request.headers.get("accept") || "";
+      if (url.pathname === "/" && !accept.includes("text/html")) {
+        return new Response(description, { headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() as any } });
+      }
       const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>awwwards-mcp — MCP for Lovable</title>
@@ -405,6 +420,7 @@ export default {
   *{box-sizing:border-box}body{margin:0;font-family:ui-sans-system,Inter,system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6}
   .wrap{max-width:780px;margin:0 auto;padding:48px 24px}
   h1{font-size:32px;margin:0 0 8px;letter-spacing:-0.02em}h1 span{color:var(--accent)}
+  h2{font-size:20px;margin:36px 0 4px;letter-spacing:-0.01em}
   .sub{color:var(--muted);margin:0 0 28px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 20px;margin:16px 0}
   code,pre{font-family:ui-monospace,Menlo,monospace;font-size:13px}
@@ -459,9 +475,103 @@ export default {
     • Health: <a href="/health">/health</a> · MCP spec: <code>2024-11-05</code>
   </div>
 
+  <h2 id="tools">Tools</h2>
+  <div class="card">
+    <strong>search_awwwards</strong>
+    <p class="muted" style="margin:6px 0 10px">Discover award-winning sites by vibe, style, industry, or category. Returns cards with <code>slug</code>, <code>url</code>, <code>title</code>, and <code>thumbnail</code>.</p>
+    <pre>{
+  // any of: query | style | category
+  "query": "minimal fintech",   // free-text vibe / industry / style
+  "category": "portfolio",      // ecommerce, portfolio, typography,
+                                // product, business, nominees,
+                                // sites_of_the_day, sites_of_the_month
+  "limit": 8                    // optional, 1-20, default 10
+}</pre>
+    <p class="muted" style="font-size:12px;margin-top:8px">Resolution: exact category slug → <code>winner_category_&lt;category&gt;</code> → free-text. Unsupported categories return few/no cards — retry with a different one.</p>
+  </div>
+
+  <div class="card">
+    <strong>extract_awwwards_specs</strong>
+    <p class="muted" style="margin:6px 0 10px">Pull structured JSON design tokens from any <code>awwwards.com</code> site page — palette, typography, layout, motion, components — ready for Lovable to apply programmatically.</p>
+    <pre>{
+  "url": "https://www.awwwards.com/sites/why-zero"  // required, awwwards.com only
+}</pre>
+    <p class="muted" style="font-size:12px;margin-top:8px">Returns <code>palette.rawHexes</code> + <code>cssVariables</code>, <code>typography</code> (heading/body/mood/pairing), <code>layout</code> patterns, <code>motion</code> (libraries/intensity/effects), and a ready-to-paste <code>lovablePrompt</code>. Fields are empty when the page publishes no data — never fabricated. Non-awwwards.com URLs are rejected with an error.</p>
+  </div>
+
+  <h2 id="quickstart">Quickstart</h2>
+  <div class="card">
+    <strong>1. Connect Lovable</strong>
+    <ol style="margin:8px 0">
+      <li>Open Lovable → <strong>Settings</strong> → <strong>MCP servers / Integrations</strong> → <strong>Connect</strong>.</li>
+      <li>Paste <code id="endpoint2">${url.origin}/mcp</code> as a Streamable HTTP endpoint.</li>
+      <li>No auth token needed — this server is public.</li>
+    </ol>
+    <strong>2. Try a prompt</strong>
+    <pre>"design this like an Awwwards winner for luxury fashion —
+ search awwwards for luxury, pick one, extract its specs,
+ and apply the tokens."</pre>
+    <strong>3. Verify</strong>
+    <pre>curl -s "${url.origin}/mcp" -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+// expect: tools: ["search_awwwards", "extract_awwwards_specs"]</pre>
+  </div>
+
+  <h2 id="agent">Agent usage</h2>
+  <div class="card">
+    <p class="muted" style="margin:0 0 12px">A subagent can perform the full install-to-use flow against this MCP. Give it this context and prompt chain (full version in the <code>awwwards-mcp</code> skill → <code>references/agent-prompts.md</code>):</p>
+    <pre># You are operating the awwwards-mcp Worker (TypeScript, Cloudflare Workers) at C:\Users\jacob\awwwards-mcp (git: Yaakovyitzchak1231).
+# Cloudflare account: Yytrout18@gmail.com, id 49cd6d0a88a3a6ee3e26b00329ec0f72, credentialed via CLOUDFLARE_API_TOKEN.
+
+1. npm install   # no --legacy-peer-deps; bump @cloudflare/workers-types to ^5.x if conflict
+2. npx wrangler whoami        # must show the account above, no login prompt
+3. npm run build            # tsc --noEmit exits 0
+4. npx wrangler deploy        # print: Current Version ID + workers.dev URL
+5. smoke the live endpoint:
+   curl -s "$BASE/mcp" -X POST -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+   curl -s "$BASE/mcp" -X POST -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_awwwards","arguments":{"query":"minimal","limit":3}}}'
+6. connect Lovable: Settings -> MCP servers -> paste https://awwwards-mcp.yytrout18.workers.dev/mcp (no auth).
+   Or connect Hermes: printf 'n\nY\n' | hermes mcp add awwwards --url https://awwwards-mcp.yytrout18.workers.dev/mcp && hermes mcp test awwwards
+
+Stop condition: deploy printed a Version ID, the two curl probes return real results (tools + sites), and the client connects.</pre>
+  </div>
+
+  <h2 id="skill">Agent skill</h2>
+  <div class="card">
+    <p class="muted" style="margin:0 0 12px">This Worker ships as a Hermes agent skill so subagents can install, deploy, and operate it by the book — no need to re-derive commands. The skill also documents the pitfalls (port collisions, peer-dep conflicts, stale caches) hit while building this MCP.</p>
+    <pre>skill: awwwards-mcp        # load with: skill_view(name="awwwards-mcp")
+category: web-development/awwwards-mcp
+files:
+  SKILL.md                       # trigger, install-to-use runbook, tool reference, pitfalls
+  references/recipes.md          # canned JSON-RPC probes (initialize → tools/list → call)
+  references/agent-prompts.md    # numbered install→deploy→connect prompt chain for a subagent
+  references/lovable-prompts.md  # ready-made prompts to paste into Lovable
+  references/scrape-anatomy.md   # awwwards.com HTML map (verified Sep 2026)</pre>
+    <p class="muted" style="font-size:12px;margin-top:8px">In a Hermes session, run <code>hermes skills list | grep awwwards</code> to confirm it's enabled, then <code>skill_view(name="awwwards-mcp")</code> to load it. The skill's <code>references/agent-prompts.md</code> is the authoritative install/deploy/connect flow — the prompt block above is a condensed copy.</p>
+  </div>
+
+  <h2 id="local">Run / deploy locally</h2>
+  <div class="card">
+    <pre>git clone &lt;repo&gt; &amp;&amp; cd awwwards-mcp
+npm install            # plain — no --legacy-peer-deps
+npm run build          # tsc typecheck
+npx wrangler dev       # local (use --port 8790 if 8787 is taken)
+npx wrangler deploy    # push to Cloudflare → prints workers.dev URL</pre>
+    <p class="muted" style="font-size:12px;margin-top:8px">Requires <code>CLOUDFLARE_API_TOKEN</code> (or <code>wrangler login</code>) for deploy. The scrape is plain server-rendered HTML — awwwards.com is not bot-walled.</p>
+  </div>
+
+  <div class="card muted" style="font-size:13px">
+    <strong style="color:var(--fg)">Health &amp; spec</strong><br>
+    • <a href="/health">/health</a> — this page<br>
+    • <code>/mcp</code> — MCP endpoint (Streamable HTTP, JSON-RPC 2.0, protocol <code>2024-11-05</code>)<br>
+    • Raw probes: <code>initialize</code> → <code>tools/list</code> → <code>tools/call</code> (see skill <code>awwwards-mcp</code> → <code>references/recipes.md</code>)
+  </div>
+
   <div class="muted" style="font-size:12px;margin-top:18px">Built for Jacob · Node/TypeScript on Cloudflare Workers · MCP SDK ${SERVER_INFO.version}</div>
 </div>
-<script>document.getElementById('endpoint').textContent = location.origin + '/mcp'</script>
+<script>document.getElementById('endpoint').textContent = location.origin + '/mcp';document.getElementById('endpoint2').textContent = location.origin + '/mcp'</script>
 </body></html>`;
       return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", ...corsHeaders() } });
     }
