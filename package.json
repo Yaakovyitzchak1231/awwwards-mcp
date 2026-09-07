@@ -1,0 +1,19 @@
+{
+  "name": "awwwards-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that lets Lovable pull curated design specs from Awwwards winners — palette, typography, layout, motion tokens as structured JSON. Live-scrapes awwwards.com.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "wrangler": "^4.20.0",
+    "@cloudflare/workers-types": "^4.20250317.0"
+  }
+}
