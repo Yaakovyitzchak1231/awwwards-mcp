@@ -634,8 +634,17 @@ npx wrangler deploy    # push to Cloudflare → prints workers.dev URL</pre>
           },
         });
       }
-      // otherwise fall through to landing
-      return new Response(null, { status: 302, headers: { Location: "/", ...corsHeaders() } });
+      // MCP discovery probe (GET without text/event-stream) — return endpoint info as JSON
+      // so clients like Lovable that GET the MCP URL for validation get a 200, not a 302.
+      return new Response(JSON.stringify({
+        jsonrpc: "2.0",
+        result: {
+          endpoint: `${url.origin}/mcp`,
+          transport: "streamable-http",
+          protocolVersion: PROTOCOL_VERSION,
+          serverInfo: SERVER_INFO,
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders() } });
     }
 
     return new Response("Not found", { status: 404, headers: corsHeaders() as any });
