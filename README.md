@@ -64,11 +64,7 @@ Palette comes from the winner's own `list-palette` on its detail page; **typogra
 
 ## Local dev
 
-```bash
-npm install
-npm run dev      # wrangler dev on :8787 — POST /mcp
-npm run deploy   # wrangler deploy
-```
+```bash\nnpm install            # plain — no --legacy-peer-deps\nnpm run build          # tsc typecheck (--noEmit)\nnpm run test           # runs build (tsc)\nnpm run dev            # wrangler dev on :8787 — POST /mcp (use --port 8790 if 8787 is taken)\nnpm run deploy         # wrangler deploy\n```
 
 ## Stack
 
