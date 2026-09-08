@@ -409,10 +409,20 @@ export default {
         return new Response(description, { headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() as any } });
       }
       const accept = request.headers.get("accept") || "";
-      // MCP discovery probe: clients like Lovable paste the bare domain (no /mcp)
-      // and GET / with Accept: application/json. Return the MCP-conformant
-      // discovery JSON so the server is found, instead of serving text/plain.
-      if (url.pathname === "/" && accept.includes("application/json")) {
+      // MCP discovery probe: clients like Lovable GET / (the bare domain) with an
+      // Accept header that may lead with text/html but also allow */* — e.g.
+      // "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".
+      // Treat a GET / as MCP discovery (return JSON) when the client signals it
+      // accepts JSON or a wildcard (*/*), UNLESS text/html is the *only* thing
+      // it wants (a real browser navigating). This makes the bare-domain URL
+      // work for Lovable's validator without breaking HTML rendering.
+      const acceptsJson =
+        accept.includes("application/json") ||
+        accept.includes("text/event-stream") ||
+        accept.includes("*/*");
+      const wantsHtmlOnly =
+        accept.includes("text/html") && !acceptsJson;
+      if (url.pathname === "/" && acceptsJson && !wantsHtmlOnly) {
         return new Response(JSON.stringify({
           jsonrpc: "2.0",
           result: {
