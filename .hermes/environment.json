@@ -1,27 +1,25 @@
 {
   "version": 1,
   "recipe": {
-    "name": "Node.js + Cloudflare Worker (awwwards-mcp)",
+    "name": "Node.js app",
     "kind": "node",
-    "bootstrap": ["npm install"],
-    "build": ["npm run build"],
-    "test": ["npm run test"],
-    "start": "npx wrangler deploy",
+    "bootstrap": [
+      "npm install"
+    ],
+    "build": [
+      "npm run build"
+    ],
+    "test": [
+      "npm run test"
+    ],
+    "start": "npm run dev",
     "port": null,
     "readinessPath": "/",
-    "readinessUrl": "https://awwwards-mcp.yytrout18.workers.dev",
     "evidence": [
-      "Detected package.json (scripts: dev, build, test, deploy, cf-typegen)",
+      "Detected package.json",
       "Package manager: npm",
-      "Serverless Worker — readiness is the deployed URL, not a local port",
-      "See references/agent-prompts.md for the install/deploy/connect flow",
-      "Local readiness poll (hermes verify) defaults to port 8787 which is occupied on this host → use --skip-start + live curl"
+      "Scripts: dev, deploy, build, test, cf-typegen"
     ]
   },
-  "readiness": {
-    "url": "https://awwwards-mcp.yytrout18.workers.dev",
-    "method": "GET",
-    "expectedContains": ["awwwards-mcp", "Streamable HTTP", "search_awwwards"]
-  },
-  "updatedAt": "2026-09-07T17:30:00.000Z"
+  "updatedAt": "2026-09-07T19:57:45.365428+00:00"
 }
