@@ -409,6 +409,20 @@ export default {
         return new Response(description, { headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() as any } });
       }
       const accept = request.headers.get("accept") || "";
+      // MCP discovery probe: clients like Lovable paste the bare domain (no /mcp)
+      // and GET / with Accept: application/json. Return the MCP-conformant
+      // discovery JSON so the server is found, instead of serving text/plain.
+      if (url.pathname === "/" && accept.includes("application/json")) {
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          result: {
+            endpoint: `${url.origin}/mcp`,
+            transport: "streamable-http",
+            protocolVersion: PROTOCOL_VERSION,
+            serverInfo: SERVER_INFO,
+          },
+        }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders() as any } });
+      }
       if (url.pathname === "/" && !accept.includes("text/html")) {
         return new Response(description, { headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() as any } });
       }
