@@ -3,6 +3,13 @@ export interface Env {}
 const SERVER_INFO = { name: "awwwards-mcp", version: "1.0.0" };
 const PROTOCOL_VERSION = "2024-11-05";
 
+// Shared MCP server capabilities advertised in both initialize and discovery
+const SERVER_CAPABILITIES = {
+  tools: { listChanged: false },
+  prompts: { listChanged: false },
+  resources: { listChanged: false },
+};
+
 // ---------- helpers ----------
 function jsonRpcResult(id: unknown, result: unknown) {
   return new Response(JSON.stringify({ jsonrpc: "2.0", id, result }), {
@@ -413,13 +420,6 @@ export default {
         return new Response(description, { headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders() as any } });
       }
       const accept = request.headers.get("accept") || "";
-      // MCP discovery probe: clients like Lovable GET / (the bare domain) with an
-      // Accept header that may lead with text/html but also allow */* — e.g.
-      // "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".
-      // Treat a GET / as MCP discovery (return JSON) when the client signals it
-      // accepts JSON or a wildcard (*/*), UNLESS text/html is the *only* thing
-      // it wants (a real browser navigating). This makes the bare-domain URL
-      // work for Lovable's validator without breaking HTML rendering.
       const acceptsJson =
         accept.includes("application/json") ||
         accept.includes("text/event-stream") ||
@@ -433,6 +433,7 @@ export default {
             endpoint: `${url.origin}/mcp`,
             transport: "streamable-http",
             protocolVersion: PROTOCOL_VERSION,
+            capabilities: SERVER_CAPABILITIES,
             serverInfo: SERVER_INFO,
           },
         }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders() as any } });
@@ -670,6 +671,7 @@ npx wrangler deploy    # push to Cloudflare → prints workers.dev URL</pre>
           endpoint: `${url.origin}/mcp`,
           transport: "streamable-http",
           protocolVersion: PROTOCOL_VERSION,
+          capabilities: SERVER_CAPABILITIES,
           serverInfo: SERVER_INFO,
         },
       }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders() } });
