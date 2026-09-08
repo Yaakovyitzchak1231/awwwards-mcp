@@ -336,7 +336,11 @@ async function handleRpc(body: any): Promise<any> {
   if (method === "initialize") {
     const result = {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { tools: { listChanged: false } },
+      capabilities: {
+        tools: { listChanged: false },
+        prompts: { listChanged: false },  // required by MCP spec conformance; Lovable validates all three families
+        resources: { listChanged: false },
+      },
       serverInfo: SERVER_INFO,
     };
     if (isNotification) return null;
